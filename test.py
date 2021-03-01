@@ -7,6 +7,13 @@ from random import randint
 from matplotlib import pyplot as plt 
 from random import randint
 import os 
+import argparse
+
+
+ap=argparse.ArgumentParser()
+ap.add_argument('-s','--string',required=False,help="add string for test")
+args=ap.parse_args()
+
 
 with open('Data/tokenize_input.pickle','rb') as handle:
     tokenize_input=pickle.load(handle)
@@ -17,6 +24,7 @@ with open('Data/tokenize_output.pickle','rb') as handle:
 with open('Data/data_test.npy','rb') as f:
     x_test=np.load(f)
     y_test=np.load(f)
+    
 x_index_to_word=dict(zip(tokenize_input.word_index.values(),tokenize_input.word_index.keys()))
 y_index_to_word=dict(zip(tokenize_output.word_index.values(),tokenize_output.word_index.keys()))
 x_test=torch.tensor(x_test,dtype=torch.long).transpose(0,1)
@@ -42,14 +50,14 @@ def decoder_setence(indxs,vocab):
     text=''.join([vocab[w] for w in indxs if (w>0) and w in vocab])
     return text
 
-# def preprocessing_text(text):
-#     sequence=tokenize_input.texts_to_sequences(text)
-#     sequence=[i[0] for i in sequence if i not Ne 0]
-#     print(sequence)
-#     max_len=len(tokenize_input.word_index)
-#     if len(sequence)<max_len:
-#         sequence=[0]*(max_len-len(sequence))+sequence
-#     return sequence
+def preprocessing_text(text):
+    sequence=tokenize_input.texts_to_sequences(text)
+    sequence=[i[0] for i in sequence if len(i)!=0]
+    #print(sequence)
+    max_len=len(tokenize_input.word_index)
+    if len(sequence)<max_len:
+        sequence=[0]*(max_len-len(sequence))+sequence
+    return sequence
 
 def predict(x,encoder,decoder,max_len=10):
     #x=x.unsqueeze(-1)#S*1
@@ -84,7 +92,7 @@ def show_attention_visualization(attentions,text_ori,text_preds):
     ax.grid()
     ax.set_xlabel("Input setence")
     ax.set_ylabel("Predict setence")
-    ax.set_title("Input:{}    Predict:{}".format(text_ori,text_preds),pad=20)
+    ax.set_title("Input:{}\nPredict:{}".format(text_ori,text_preds),pad=20)
     plt.show()
 
     # save result
@@ -101,13 +109,24 @@ def main():
     # s=str("t5 ngày 29, thg 2 1972")
     # print(len(s))
     # data_point=preprocessing_text(s)   
-    preds,attention_weights=predict(x_test,encoder,decoder)
-    x_rand_index=randint(0,len(x_test))
-    text_ori=decoder_setence(x_test[:,x_rand_index].numpy(),x_index_to_word)
-    text_preds=decoder_setence(preds[x_rand_index].numpy(),y_index_to_word)
-    print("Input:",text_ori)
-    print("Output:",text_preds)
-    show_attention_visualization(attention_weights[x_rand_index,:,-len(text_ori):],text_ori,text_preds)
+    if args.string is None :
+        preds,attention_weights=predict(x_test,encoder,decoder)
+        x_rand_index=randint(0,len(x_test))
+        text_ori=decoder_setence(x_test[:,x_rand_index].numpy(),x_index_to_word)
+        text_preds=decoder_setence(preds[x_rand_index].numpy(),y_index_to_word)
+        print("Input:",text_ori)
+        print("Output:",text_preds)
+        show_attention_visualization(attention_weights[x_rand_index,:,-len(text_ori):],text_ori,text_preds)
+    else:
+        text_ori=str(args.string)
+        x=torch.tensor(preprocessing_text(text_ori)).unsqueeze(1)
+        preds,attention_weight=predict(x,encoder,decoder)
+        print(text_ori)
+        text_preds=decoder_setence(preds[0,:].numpy(),y_index_to_word)
+        print(text_preds)
+        show_attention_visualization(attention_weight[0,:,-len(text_ori):],text_ori,text_preds)
+
+
 
 if __name__=="__main__":
     main()
